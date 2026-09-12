@@ -14,24 +14,29 @@ const MAX_YAW = 0.36;
 const MAX_PITCH = 0.18;
 const BOB = 0.035;
 
-// Head silhouette as a lathe profile: [radius, height] from crown to chin.
+// Head silhouette as a lathe profile: [radius, height] from chin up to crown.
 // Authoring the profile directly is the only reliable way to get a domed crown
 // and a defined chin — sculpting a sphere with ad-hoc falloffs yields an egg.
+//
+// Order matters: LatheGeometry winds faces assuming points ascend in y. Listed
+// top-down the winding inverts, normals point inward, and a raycast aimed at
+// the face passes straight through and lands on the inside of the skull — which
+// put the eyes on the BACK of the head.
 const PROFILE: [number, number][] = [
-  [0.001, 1.2],
-  [0.24, 1.16],
-  [0.46, 1.07],
-  [0.63, 0.94],
-  [0.75, 0.77],
-  [0.82, 0.55],
-  [0.85, 0.3],
-  [0.84, 0.04],
-  [0.79, -0.23],
-  [0.69, -0.47],
-  [0.55, -0.68],
-  [0.39, -0.84],
-  [0.21, -0.94],
   [0.001, -0.99],
+  [0.21, -0.94],
+  [0.39, -0.84],
+  [0.55, -0.68],
+  [0.69, -0.47],
+  [0.79, -0.23],
+  [0.84, 0.04],
+  [0.85, 0.3],
+  [0.82, 0.55],
+  [0.75, 0.77],
+  [0.63, 0.94],
+  [0.46, 1.07],
+  [0.24, 1.16],
+  [0.001, 1.2],
 ];
 
 /** Narrower than it is deep, like a head. */
@@ -95,6 +100,25 @@ function buildHeadGeometry(segments = 128): THREE.BufferGeometry {
   g.deleteAttribute('uv');
   g = mergeVertices(g);
   g.computeVertexNormals();
+
+  // Re-project UVs as a planar map seen from +Z. The lathe's own cylindrical
+  // UVs wrap around the sides, so anything painted "on the face" landed on the
+  // ears. With a front projection, texture space is literally the front
+  // elevation: what you draw at the centre of the image lands on the face.
+  const pos = g.attributes.position;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    minX = Math.min(minX, pos.getX(i));
+    maxX = Math.max(maxX, pos.getX(i));
+    minY = Math.min(minY, pos.getY(i));
+    maxY = Math.max(maxY, pos.getY(i));
+  }
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = (pos.getX(i) - minX) / (maxX - minX);
+    uv[i * 2 + 1] = (pos.getY(i) - minY) / (maxY - minY);
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   return g;
 }
 
@@ -151,12 +175,56 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   }
 
   // ------------------------------------------------------------------ materials
-  // Uniform satin black: a soft sheen that describes the form without becoming
-  // a mirror. A painted-on visor was tried and dropped — the lathe's UVs wrap
-  // the texture around the sides rather than across the face, and the head now
-  // carries no UVs at all so its seam could be welded.
+  // Face painted in the front-projected UV space set up by buildHeadGeometry:
+  // image centre maps to the centre of the face, so the visor lands where it is
+  // drawn. v runs bottom (0) to top (1); canvas y is inverted.
+  const FW = 1024;
+  const FH = 1024;
+  const faceCv = document.createElement('canvas');
+  faceCv.width = FW;
+  faceCv.height = FH;
+  const fx = faceCv.getContext('2d')!;
+  const yAt = (v: number) => (1 - v) * FH;
+
+  fx.fillStyle = '#262A31';
+  fx.fillRect(0, 0, FW, FH);
+
+  // Visor: a wide dark band across the eye line with soft vertical falloff.
+  // Centred on v=0.523, the eye slits' measured position in this UV space.
+  const visorTop = yAt(0.63);
+  const visorBot = yAt(0.42);
+  const band = fx.createLinearGradient(0, visorTop, 0, visorBot);
+  band.addColorStop(0, 'rgba(10,12,15,0)');
+  band.addColorStop(0.22, 'rgba(6,8,10,0.96)');
+  band.addColorStop(0.78, 'rgba(6,8,10,0.96)');
+  band.addColorStop(1, 'rgba(10,12,15,0)');
+  fx.save();
+  fx.beginPath();
+  fx.ellipse(FW / 2, (visorTop + visorBot) / 2, FW * 0.34, (visorBot - visorTop) / 2, 0, 0, Math.PI * 2);
+  fx.clip();
+  fx.fillStyle = band;
+  fx.fillRect(0, visorTop, FW, visorBot - visorTop);
+  fx.restore();
+
+  // Brow highlight just above the visor, and a jaw seam below the cheeks.
+  fx.strokeStyle = 'rgba(150,160,175,0.45)';
+  fx.lineWidth = 5;
+  fx.beginPath();
+  fx.ellipse(FW / 2, yAt(0.655), FW * 0.28, FH * 0.05, 0, Math.PI * 1.08, Math.PI * 1.92);
+  fx.stroke();
+
+  fx.strokeStyle = 'rgba(120,130,145,0.28)';
+  fx.lineWidth = 3;
+  fx.beginPath();
+  fx.ellipse(FW / 2, yAt(0.27), FW * 0.15, FH * 0.055, 0, Math.PI * 0.1, Math.PI * 0.9);
+  fx.stroke();
+
+  const faceTex = new THREE.CanvasTexture(faceCv);
+  faceTex.colorSpace = THREE.SRGBColorSpace;
+
+  // Satin black: a soft sheen that describes the form without becoming a mirror.
   const shell = new THREE.MeshPhysicalMaterial({
-    color: '#1A1D22',
+    map: faceTex,
     metalness: 0.2,
     roughness: 0.5,
     clearcoat: 0.4,
@@ -203,7 +271,7 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     toneMapped: false,
   });
 
-  const disposables: { dispose(): void }[] = [shell, seamMat, glowTex, glowMat];
+  const disposables: { dispose(): void }[] = [shell, seamMat, faceTex, glowTex, glowMat];
   const track = <T extends THREE.BufferGeometry>(g: T): T => {
     disposables.push(g);
     return g;

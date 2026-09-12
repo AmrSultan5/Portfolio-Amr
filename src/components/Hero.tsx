@@ -100,18 +100,6 @@ export function Hero() {
             </motion.a>
           </motion.div>
 
-          <motion.div
-            variants={soft}
-            className="mt-auto hidden items-center gap-3 pt-6 text-[11.5px] uppercase tracking-[0.14em] text-muted-2 lg:flex"
-          >
-            <span>Scroll</span>
-            <motion.span
-              aria-hidden
-              className="block h-px w-10 origin-left bg-muted-2/50"
-              animate={{ scaleX: [0.3, 1, 0.3] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          </motion.div>
         </div>
 
         {/* Head + card as one composition */}
@@ -133,6 +121,24 @@ export function Hero() {
             <ChatCard qText={qText} aText={aText} streamState={streamState} />
           </div>
         </motion.div>
+      </motion.div>
+
+      {/* Absolutely positioned rather than a flex child: as a child with mt-auto
+          it absorbed the column's free space and defeated justify-center,
+          pushing the whole hero to the top of the screen. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.1, duration: 0.8 }}
+        className="pointer-events-none absolute bottom-8 left-1/2 hidden -translate-x-1/2 items-center gap-3 text-[11.5px] uppercase tracking-[0.14em] text-muted-2 lg:flex"
+      >
+        <span>Scroll</span>
+        <motion.span
+          aria-hidden
+          className="block h-px w-10 origin-left bg-muted-2/50"
+          animate={{ scaleX: [0.3, 1, 0.3] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        />
       </motion.div>
     </section>
   );

@@ -22,9 +22,20 @@ Everything below is a clearly-marked placeholder. Edit `src/config.ts`:
 
 ## Deploying
 
-The project builds to a static `dist/` folder, so it deploys to Vercel or Netlify
-with zero extra config — just point either at this repo and use the default
-Vite build settings (`npm run build`, output directory `dist`).
+The project builds to a static `dist/` folder.
+
+**Vercel / Netlify** — point either at this repo and use the default Vite
+settings (`npm run build`, output directory `dist`).
+
+**GitHub Pages** — `.github/workflows/deploy.yml` builds and publishes on every
+push to `main`. Enable it once under *Settings → Pages → Source → GitHub
+Actions*.
+
+`vite.config.ts` sets `base: './'` so assets are referenced with relative URLs.
+This matters: Vite's default (`/`) emits `/assets/…`, which 404s when the site
+is served from a subpath like `username.github.io/repo/` — the symptom is a
+blank white page. Relative URLs work from a subpath and from a domain root, so
+the same build deploys anywhere. Don't change it without re-testing on Pages.
 
 ## Project structure
 
