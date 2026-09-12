@@ -33,9 +33,16 @@ export function HeroHead({ streamState }: HeroHeadProps) {
   }, [streamState]);
 
   return (
-    <div className="relative h-[clamp(288px,46vh,400px)] w-[clamp(216px,25vw,296px)]">
+    <div className="relative h-[clamp(232px,33vh,310px)] w-[clamp(176px,18vw,232px)]">
+      {/* Grounding pedestal — without it the head reads as floating debris */}
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 w-[min(58%,180px)] -translate-x-1/2 -translate-y-1/2 transition-opacity duration-700"
+        aria-hidden
+        className="pointer-events-none absolute bottom-[2%] left-1/2 h-[9%] w-[78%] -translate-x-1/2 rounded-[50%] blur-md"
+        style={{ background: 'radial-gradient(ellipse, rgba(10,12,18,0.30) 0%, rgba(10,12,18,0) 72%)' }}
+      />
+
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 w-[min(58%,168px)] -translate-x-1/2 -translate-y-1/2 transition-opacity duration-700"
         style={{ opacity: ready ? 0 : 1 }}
       >
         <div

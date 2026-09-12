@@ -11,9 +11,11 @@ import { Stack } from './components/Stack';
 import { Stats } from './components/Stats';
 import { Work } from './components/Work';
 import type { Project } from './data/projects';
+import { useSmoothScroll } from './hooks/useSmoothScroll';
 
 function App() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  useSmoothScroll();
 
   return (
     <div className="max-w-full overflow-x-hidden bg-bg">

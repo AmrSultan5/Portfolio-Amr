@@ -1,5 +1,6 @@
-import { RevealGroup, RevealItem } from './Reveal';
 import { stats } from '../data/qa';
+import { CountUp } from './CountUp';
+import { RevealGroup, RevealItem } from './Reveal';
 
 export function Stats() {
   return (
@@ -11,12 +12,11 @@ export function Stats() {
       <RevealGroup className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(min(260px,100%),1fr))] gap-[clamp(40px,6vw,88px)]" stagger={0.12}>
         {stats.map((s) => (
           <RevealItem key={s.label}>
-            <div
+            <CountUp
+              value={s.value}
               className="tabular-nums text-[clamp(56px,7vw,104px)] font-semibold leading-[0.94] tracking-[-0.05em]"
               style={{ color: s.accent ? 'var(--color-accent)' : undefined }}
-            >
-              {s.value}
-            </div>
+            />
             <div className="mt-[18px] max-w-[24ch] text-[15px] leading-[1.6] text-muted">{s.label}</div>
           </RevealItem>
         ))}

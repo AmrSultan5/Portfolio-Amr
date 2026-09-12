@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { type FormEvent, useState } from 'react';
 import { CV_PATH, EMAIL, FORMSPREE_ENDPOINT, GITHUB_URL, LINKEDIN_URL } from '../config';
 import { fadeUp } from '../lib/motion';
+import { MaskReveal } from './MaskReveal';
 import { Reveal } from './Reveal';
 
 const LINKS = [
@@ -44,9 +45,12 @@ export function Contact() {
       <div className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-[clamp(44px,6vw,88px)]">
         <Reveal>
           <div className="text-xs uppercase tracking-[0.16em] text-dark-accent">Contact</div>
-          <h2 className="m-0 mt-6 max-w-[14ch] text-[clamp(34px,5.4vw,76px)] font-semibold leading-[0.98] tracking-[-0.05em]">
+          <MaskReveal
+            as="h2"
+            className="m-0 mt-6 max-w-[14ch] text-[clamp(34px,5.4vw,76px)] font-semibold leading-[0.98] tracking-[-0.05em]"
+          >
             Tell me what you need built.
-          </h2>
+          </MaskReveal>
           <p className="m-0 mt-[26px] max-w-[44ch] text-[17px] leading-[1.62] text-dark-muted-3">
             Send a few lines about the problem and the deadline. I reply with a scope, a timeline, and a price — or
             an honest no.

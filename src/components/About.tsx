@@ -1,15 +1,19 @@
+import { MaskReveal } from './MaskReveal';
 import { Reveal } from './Reveal';
 
 export function About() {
   return (
     <section id="about" className="px-7 pb-[clamp(96px,13vw,200px)]">
       <div className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-[clamp(36px,5vw,88px)]">
-        <Reveal>
-          <div className="text-xs uppercase tracking-[0.16em] text-accent">About</div>
-          <h2 className="m-0 mt-[22px] max-w-[18ch] text-[clamp(28px,4vw,56px)] font-semibold leading-[1.02] tracking-[-0.046em]">
+        <div>
+          <Reveal className="text-xs uppercase tracking-[0.16em] text-accent">About</Reveal>
+          <MaskReveal
+            as="h2"
+            className="m-0 mt-[22px] max-w-[18ch] text-[clamp(28px,4vw,56px)] font-semibold leading-[1.02] tracking-[-0.046em]"
+          >
             Data Science at GIU, then production systems inside an enterprise.
-          </h2>
-        </Reveal>
+          </MaskReveal>
+        </div>
         <Reveal className="flex flex-col gap-6 pt-2">
           <p className="m-0 text-[clamp(16px,1.5vw,18.5px)] leading-[1.68] text-ink-soft">
             I'm a Data Science senior at the German International University in Cairo. Alongside the degree I joined

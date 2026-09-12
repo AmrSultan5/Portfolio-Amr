@@ -10,6 +10,12 @@ export interface HeroHeadHandle {
 
 const EYE_HEX = '#3D9BF0';
 
+// Motion envelope — the resize() framing is derived from these, so the head can
+// never rotate or drift outside the frame.
+const MAX_YAW = 0.34;
+const MAX_PITCH = 0.2;
+const BOB = 0.04;
+
 /**
  * A soft-cornered "monolith" head: architectural, not a literal robot toy.
  * Rendered onto `canvas`; the caller owns lifecycle (call dispose() on unmount).
@@ -32,34 +38,48 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   // Blurred studio environment: a soft sky-to-floor gradient with one hot
   // highlight, so the clearcoat picks up a believable falloff instead of a
   // hard rectangle reflection.
+  // 1024x512 — at 512x256 the PMREM mips are coarse enough that the highlight
+  // resolves as visible blocks on the clearcoat.
+  const EW = 1024;
+  const EH = 512;
   const envCv = document.createElement('canvas');
-  envCv.width = 512;
-  envCv.height = 256;
+  envCv.width = EW;
+  envCv.height = EH;
   const ex = envCv.getContext('2d')!;
-  const sky = ex.createLinearGradient(0, 0, 0, 256);
+  const sky = ex.createLinearGradient(0, 0, 0, EH);
   sky.addColorStop(0, '#FFFFFF');
   sky.addColorStop(0.42, '#DCE1E8');
   sky.addColorStop(0.52, '#A6ACB6');
   sky.addColorStop(1, '#33373D');
   ex.fillStyle = sky;
-  ex.fillRect(0, 0, 512, 256);
-  const hot = ex.createRadialGradient(150, 42, 4, 150, 42, 160);
-  hot.addColorStop(0, 'rgba(255,255,255,0.98)');
+  ex.fillRect(0, 0, EW, EH);
+  // Broad, low-contrast key. A small hot spot reflects as a hard-edged white
+  // chip on a near-mirror surface, which reads as a rendering glitch.
+  const hot = ex.createRadialGradient(EW * 0.33, EH * 0.12, 20, EW * 0.33, EH * 0.12, EW * 0.6);
+  hot.addColorStop(0, 'rgba(255,255,255,0.55)');
+  hot.addColorStop(0.45, 'rgba(255,255,255,0.14)');
   hot.addColorStop(1, 'rgba(255,255,255,0)');
   ex.fillStyle = hot;
-  ex.fillRect(0, 0, 512, 256);
+  ex.fillRect(0, 0, EW, EH);
   const envTex = new THREE.CanvasTexture(envCv);
   envTex.mapping = THREE.EquirectangularReflectionMapping;
   envTex.colorSpace = THREE.SRGBColorSpace;
-  scene.environment = envTex;
-  if ('environmentIntensity' in scene) (scene as unknown as { environmentIntensity: number }).environmentIntensity = 0.9;
+
+  // Prefilter through PMREM so reflections are blurred per-roughness instead of
+  // sampling the raw texture (which is what produced the hard specular edge).
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envRT = pmrem.fromEquirectangular(envTex);
+  scene.environment = envRT.texture;
+  envTex.dispose();
+  pmrem.dispose();
+  if ('environmentIntensity' in scene) (scene as unknown as { environmentIntensity: number }).environmentIntensity = 1.05;
 
   const piano = new THREE.MeshPhysicalMaterial({
-    color: '#0A0A0C',
-    metalness: 0.32,
-    roughness: 0.16,
+    color: '#0B0B0E',
+    metalness: 0.25,
+    roughness: 0.34,
     clearcoat: 1,
-    clearcoatRoughness: 0.07,
+    clearcoatRoughness: 0.3,
   });
   const lens = new THREE.MeshStandardMaterial({
     color: '#08192B',
@@ -73,7 +93,9 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   const SW = 2.46;
   const SH = 3.34;
   const SD = 1.44;
-  const shellGeo = new RoundedBoxGeometry(SW, SH, SD, 9, 0.6);
+  // 20 segments — at 9 the crown deformation below leaves visible faceting
+  // bands across the front under a glossy clearcoat.
+  const shellGeo = new RoundedBoxGeometry(SW, SH, SD, 20, 0.6);
   const sp = shellGeo.attributes.position;
   for (let i = 0; i < sp.count; i++) {
     const x = sp.getX(i);
@@ -105,8 +127,10 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     voiceBars.push(b);
   }
 
-  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C9CDD4', 0.85));
-  const key = new THREE.DirectionalLight('#FFFFFF', 3.6);
+  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C9CDD4', 0.7));
+  // Dialled well back — the PMREM environment now does most of the shaping, and
+  // a strong directional on a clearcoat surface just stamps a hard hot pixel.
+  const key = new THREE.DirectionalLight('#FFFFFF', 1.5);
   key.position.set(-1.8, 7.2, 4.4);
   scene.add(key);
   const fill = new THREE.DirectionalLight('#D6E8FF', 0.9);
@@ -121,13 +145,19 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    const subjectH = 3.38;
-    const subjectW = 2.56;
+    // Frame the head at its widest *rotated* extent, not its rest size — at max
+    // yaw the depth swings into the silhouette, and framing the rest pose clips
+    // the corners. Plus a margin so the head sits in space instead of filling it.
+    const MARGIN = 1.24;
+    const swept = (a: number, b: number, angle: number) =>
+      a * Math.cos(angle) + b * Math.sin(angle);
+    const subjectW = swept(SW, SD, MAX_YAW) * MARGIN;
+    const subjectH = (swept(SH, SD, MAX_PITCH) + BOB * 2) * MARGIN;
     const vFov = (camera.fov * Math.PI) / 180;
     const distH = subjectH / 2 / Math.tan(vFov / 2);
     const distW = subjectW / 2 / Math.tan(vFov / 2) / camera.aspect;
-    camera.position.set(0, 0.1, Math.max(distH, distW));
-    camera.lookAt(0, 0.05, 0);
+    camera.position.set(0, 0.06, Math.max(distH, distW));
+    camera.lookAt(0, 0.02, 0);
     camera.updateProjectionMatrix();
   };
   resize();
@@ -166,13 +196,15 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     const gx = hasPointer ? mx : Math.sin(t * 0.3) * 0.5;
     const gy = hasPointer ? my : Math.cos(t * 0.24) * 0.3;
 
-    // Slower damping than the original for a calmer, more deliberate turn.
-    yaw += (gx * 0.42 + idle * 0.3 - yaw) * 0.05;
-    pitch += (gy * 0.26 - pitch) * 0.05;
+    // Slow damping for a calm, deliberate turn, clamped to the motion envelope
+    // the camera framing was derived from.
+    const clamp = (v: number, m: number) => Math.max(-m, Math.min(m, v));
+    yaw += (clamp(gx * 0.34 + idle * 0.22, MAX_YAW) - yaw) * 0.045;
+    pitch += (clamp(gy * 0.18, MAX_PITCH) - pitch) * 0.045;
     head.rotation.y = yaw;
     head.rotation.x = pitch;
-    head.rotation.z = -yaw * 0.08;
-    head.position.y = motion ? Math.sin(t * 0.62) * 0.05 : 0;
+    head.rotation.z = -yaw * 0.07;
+    head.position.y = motion ? Math.sin(t * 0.62) * BOB : 0;
 
     if (motion && t > nextSac) {
       sacTX = (Math.random() - 0.5) * 1.4;
@@ -224,7 +256,7 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
       shellGeo.dispose();
       piano.dispose();
       lens.dispose();
-      envTex.dispose();
+      envRT.dispose();
       voiceBars.forEach((b) => b.geometry.dispose());
     },
   };
