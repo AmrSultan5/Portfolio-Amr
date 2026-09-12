@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { EASE } from '../lib/motion';
-import { AgentTrace } from './AgentTrace';
+import { SystemGraph } from './SystemGraph';
 
 const container = {
   hidden: {},
@@ -53,7 +53,7 @@ export function Hero() {
             </span>
           </motion.div>
 
-          <h1 className="m-0 max-w-[14ch] text-[clamp(37px,5.3vw,84px)] font-semibold leading-[0.95] tracking-[-0.05em]">
+          <h1 className="m-0 max-w-[16ch] text-[clamp(35px,4.6vw,72px)] font-semibold leading-[0.96] tracking-[-0.048em]">
             <span className="block overflow-hidden pb-[0.07em]">
               <motion.span variants={lineMask} className="block text-ink">
                 Most freelancers have side projects.
@@ -99,10 +99,10 @@ export function Hero() {
 
         <motion.div
           variants={soft}
-          className="relative mx-auto w-full pb-[clamp(72px,12vh,120px)] lg:mx-0 lg:pb-0"
-          style={{ flex: '0 1 520px', minWidth: 'min(100%, 300px)' }}
+          className="relative mx-auto w-full pb-[clamp(32px,6vh,72px)] lg:mx-0 lg:pb-0"
+          style={{ flex: '0 1 560px', minWidth: 'min(100%, 300px)' }}
         >
-          <AgentTrace />
+          <SystemGraph />
         </motion.div>
       </motion.div>
 
