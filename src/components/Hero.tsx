@@ -1,9 +1,6 @@
 import { motion } from 'framer-motion';
-import { qa } from '../data/qa';
-import { useTypingStream } from '../hooks/useTypingStream';
 import { EASE } from '../lib/motion';
-import { ChatCard } from './ChatCard';
-import { HeroHead } from './HeroHead';
+import { AgentTrace } from './AgentTrace';
 
 const container = {
   hidden: {},
@@ -22,8 +19,6 @@ const soft = {
 };
 
 export function Hero() {
-  const { qText, aText, streamState } = useTypingStream(qa, 30);
-
   return (
     <section id="top" className="relative overflow-hidden px-[clamp(20px,5vw,28px)]">
       {/* Ambient backdrop. No blur filter — a radial gradient is already a soft
@@ -102,24 +97,12 @@ export function Hero() {
 
         </div>
 
-        {/* Head + card as one composition */}
         <motion.div
           variants={soft}
-          className="relative mx-auto flex flex-col items-center pb-[clamp(72px,12vh,120px)] lg:mx-0 lg:pb-0"
-          style={{ flex: '0 1 400px', minWidth: 'min(100%, 300px)' }}
+          className="relative mx-auto w-full pb-[clamp(72px,12vh,120px)] lg:mx-0 lg:pb-0"
+          style={{ flex: '0 1 520px', minWidth: 'min(100%, 300px)' }}
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[38%] aspect-square w-[92%] -translate-x-1/2 -translate-y-1/2"
-            style={{
-              background:
-                'radial-gradient(ellipse, rgba(61,155,240,0.16) 0%, rgba(61,155,240,0.04) 46%, rgba(61,155,240,0) 72%)',
-            }}
-          />
-          <HeroHead streamState={streamState} />
-          <div className="relative -mt-6 w-full px-2">
-            <ChatCard qText={qText} aText={aText} streamState={streamState} />
-          </div>
+          <AgentTrace />
         </motion.div>
       </motion.div>
 
