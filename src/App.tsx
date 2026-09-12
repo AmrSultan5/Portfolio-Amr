@@ -1,3 +1,4 @@
+import { MotionConfig } from 'framer-motion';
 import { useState } from 'react';
 import { About } from './components/About';
 import { Capabilities } from './components/Capabilities';
@@ -18,19 +19,25 @@ function App() {
   useSmoothScroll();
 
   return (
-    <div className="max-w-full overflow-x-hidden bg-bg">
-      <Header />
-      <Hero />
-      <Stats />
-      <Work onSelect={setActiveProject} />
-      <Capabilities />
-      <Stack />
-      <Process />
-      <About />
-      <Contact />
-      <Footer />
-      <CaseStudyModal project={activeProject} onClose={() => setActiveProject(null)} />
-    </div>
+    // reducedMotion="user" makes Framer honour prefers-reduced-motion: transform
+    // and opacity animations snap to their end state rather than playing. Without
+    // it Framer ignores the preference entirely — the CSS override in index.css
+    // only reaches CSS animations, not JS-driven ones.
+    <MotionConfig reducedMotion="user">
+      <div className="max-w-full overflow-x-hidden bg-bg">
+        <Header />
+        <Hero />
+        <Stats />
+        <Work onSelect={setActiveProject} />
+        <Capabilities />
+        <Stack />
+        <Process />
+        <About />
+        <Contact />
+        <Footer />
+        <CaseStudyModal project={activeProject} onClose={() => setActiveProject(null)} />
+      </div>
+    </MotionConfig>
   );
 }
 

@@ -12,10 +12,14 @@ export function useSmoothScroll() {
     if (reduced) return;
 
     const lenis = new Lenis({
-      duration: 1.05,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      // lerp rather than duration: it tracks the wheel continuously instead of
+      // restarting a tween per event, which is what makes fast flicks feel
+      // gluey.
+      lerp: 0.1,
       wheelMultiplier: 1,
-      touchMultiplier: 1.6,
+      // Native momentum on touch already feels right; smoothing it fights the OS.
+      syncTouch: false,
+      touchMultiplier: 1.8,
     });
 
     let raf = 0;
@@ -33,8 +37,8 @@ export function useSmoothScroll() {
       const target = document.querySelector(href);
       if (!target) return;
       e.preventDefault();
-      // Offset for the 50px sticky header.
-      lenis.scrollTo(target as HTMLElement, { offset: -50 });
+      // Offset for the sticky header.
+      lenis.scrollTo(target as HTMLElement, { offset: -54 });
     };
     document.addEventListener('click', onAnchorClick);
 

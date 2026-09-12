@@ -23,7 +23,11 @@ export function ChatCard({ qText, aText, streamState }: ChatCardProps) {
       {/* Ambient bloom, brightest while the model is answering */}
       <motion.div
         aria-hidden
-        className="absolute -inset-6 rounded-[32px] bg-accent-glow/20 blur-3xl"
+        className="absolute -inset-10 rounded-[40px]"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(61,155,240,0.30) 0%, rgba(61,155,240,0.10) 45%, rgba(61,155,240,0) 72%)',
+        }}
         animate={{ opacity: live ? 0.85 : thinking ? 0.5 : 0.28 }}
         transition={{ duration: 0.8, ease: [0.16, 0.84, 0.44, 1] }}
       />

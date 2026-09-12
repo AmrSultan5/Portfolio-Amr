@@ -27,17 +27,19 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-[calc(100svh-50px)] flex-col justify-center overflow-hidden px-[clamp(18px,5vw,28px)] py-[clamp(28px,5vh,64px)]"
+      className="relative flex min-h-[calc(100svh-54px)] flex-col justify-center overflow-hidden px-[clamp(18px,5vw,28px)] py-[clamp(28px,5vh,64px)]"
     >
-      {/* Ambient backdrop */}
+      {/* Ambient backdrop. No blur filter — a radial gradient is already a soft
+          falloff, and filtering a ~560px element every frame is expensive on
+          mobile for no visible difference. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="absolute left-[6%] top-[10%] h-[46vw] max-h-[560px] w-[46vw] max-w-[560px] animate-[drift_20s_ease-in-out_infinite] rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(44,111,181,0.13) 0%, rgba(44,111,181,0) 70%)' }}
+          className="absolute left-[6%] top-[10%] h-[46vw] max-h-[560px] w-[46vw] max-w-[560px] animate-[drift_20s_ease-in-out_infinite] rounded-full will-change-transform"
+          style={{ background: 'radial-gradient(circle, rgba(44,111,181,0.15) 0%, rgba(44,111,181,0) 70%)' }}
         />
         <div
-          className="absolute bottom-[4%] right-[4%] h-[40vw] max-h-[480px] w-[40vw] max-w-[480px] animate-[drift_26s_ease-in-out_infinite_reverse] rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(61,155,240,0.11) 0%, rgba(61,155,240,0) 70%)' }}
+          className="absolute bottom-[4%] right-[4%] h-[40vw] max-h-[480px] w-[40vw] max-w-[480px] animate-[drift_26s_ease-in-out_infinite_reverse] rounded-full will-change-transform"
+          style={{ background: 'radial-gradient(circle, rgba(61,155,240,0.13) 0%, rgba(61,155,240,0) 70%)' }}
         />
       </div>
 
@@ -72,13 +74,13 @@ export function Hero() {
             </span>
           </h1>
 
-          <motion.div variants={soft} className="mt-2 flex flex-wrap gap-3">
+          <motion.div variants={soft} className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
             <motion.a
               href="#contact"
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-              className="rounded-full bg-ink px-[30px] py-[15px] text-[15px] font-medium text-bg shadow-[0_2px_10px_rgba(16,16,17,0.12)] transition-colors duration-300 hover:bg-accent hover:shadow-[0_18px_36px_-8px_rgba(44,111,181,0.5)]"
+              className="rounded-full bg-ink px-[30px] py-[15px] text-center text-[15px] font-medium text-bg shadow-[0_2px_10px_rgba(16,16,17,0.12)] transition-colors duration-300 hover:bg-accent hover:shadow-[0_18px_36px_-8px_rgba(44,111,181,0.5)]"
             >
               Start a project
             </motion.a>
@@ -87,7 +89,7 @@ export function Hero() {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-              className="rounded-full border border-border-3 bg-white/60 px-[30px] py-[15px] text-[15px] font-medium text-ink backdrop-blur-sm transition-colors duration-300 hover:border-ink"
+              className="rounded-full border border-border-3 bg-white/60 px-[30px] py-[15px] text-center text-[15px] font-medium text-ink transition-colors duration-300 hover:border-ink"
             >
               See selected work
             </motion.a>
@@ -95,9 +97,11 @@ export function Hero() {
         </div>
 
         {/* Head + card as one composition, not two loose objects */}
+        {/* mx-auto centres this block on the row it lands on — without it the
+            visual stays pinned left once the columns wrap at tablet widths. */}
         <motion.div
           variants={soft}
-          className="relative flex flex-col items-center"
+          className="relative mx-auto flex flex-col items-center"
           style={{ flex: '0 1 380px', minWidth: 'min(100%, 300px)' }}
         >
           <div
