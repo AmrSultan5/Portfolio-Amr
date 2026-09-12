@@ -33,7 +33,7 @@ export function HeroHead({ streamState }: HeroHeadProps) {
   }, [streamState]);
 
   return (
-    <div className="relative h-[clamp(196px,29vh,300px)] w-[clamp(148px,17vw,224px)]">
+    <div className="relative h-[clamp(208px,34vh,360px)] w-[clamp(158px,20vw,272px)]">
       {/* Grounding pedestal — without it the head reads as floating debris */}
       <div
         aria-hidden

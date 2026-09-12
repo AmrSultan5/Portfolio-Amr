@@ -1,7 +1,6 @@
 import { capabilities } from '../data/qa';
 import { MaskReveal } from './MaskReveal';
 import { Reveal, RevealGroup, RevealItem } from './Reveal';
-
 export function Capabilities() {
   return (
     <section id="capabilities" className="px-7 py-[clamp(96px,13vw,200px)]">
@@ -12,11 +11,11 @@ export function Capabilities() {
         </MaskReveal>
         <RevealGroup
           className="mt-[clamp(56px,7vw,112px)] grid grid-cols-[repeat(auto-fit,minmax(min(290px,100%),1fr))] gap-[clamp(36px,5vw,72px)]"
-          stagger={0.1}
         >
-          {capabilities.map((c) => (
+          {capabilities.map((c, i) => (
             <RevealItem
               key={c.title}
+              delay={i * 0.08}
               className="flex flex-col gap-4 border-t pt-[26px]"
               style={{ borderTopColor: c.accent ? 'var(--color-accent)' : 'var(--color-ink)' }}
             >

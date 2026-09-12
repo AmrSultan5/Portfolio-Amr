@@ -10,7 +10,7 @@ export function Stack() {
         <MaskReveal as="h2" className="m-0 mt-[22px] max-w-[20ch] text-[clamp(30px,5vw,72px)] font-semibold leading-[1] tracking-[-0.046em]">
           What I actually work in, day to day.
         </MaskReveal>
-        <RevealGroup className="mt-[clamp(48px,6vw,88px)] flex flex-col gap-[clamp(36px,4vw,56px)]" stagger={0.06}>
+        <RevealGroup className="mt-[clamp(48px,6vw,88px)] flex flex-col gap-[clamp(36px,4vw,56px)]">
           {stack.map((row) => (
             <RevealItem key={row.label} className="flex flex-wrap gap-x-11 gap-y-2.5">
               <div

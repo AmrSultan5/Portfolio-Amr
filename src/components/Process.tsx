@@ -12,10 +12,15 @@ export function Process() {
         </MaskReveal>
         <RevealGroup
           className="mt-[clamp(48px,6vw,96px)] grid grid-cols-[repeat(auto-fit,minmax(min(230px,100%),1fr))] gap-[clamp(28px,3.5vw,48px)]"
-          stagger={0.1}
+         
         >
-          {process.map((p) => (
-            <RevealItem key={p.step} className="flex flex-col gap-3 border-t pt-6" style={{ borderTopColor: 'var(--color-border)' }}>
+          {process.map((p, i) => (
+            <RevealItem
+              key={p.step}
+              delay={i * 0.07}
+              className="flex flex-col gap-3 border-t pt-6"
+              style={{ borderTopColor: 'var(--color-border)' }}
+            >
               <div className="text-xs uppercase tracking-[0.14em]" style={{ color: p.accent ? 'var(--color-accent)' : 'var(--color-muted-2)' }}>
                 {p.step}
               </div>

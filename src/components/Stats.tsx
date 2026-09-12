@@ -9,9 +9,9 @@ export function Stats() {
         <span>Cairo · GMT+2 · Remote</span>
         <span className="ml-auto">Freelance capacity: open</span>
       </div>
-      <RevealGroup className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(min(260px,100%),1fr))] gap-[clamp(40px,6vw,88px)]" stagger={0.12}>
-        {stats.map((s) => (
-          <RevealItem key={s.label}>
+      <RevealGroup className="mx-auto grid max-w-6xl grid-cols-[repeat(auto-fit,minmax(min(260px,100%),1fr))] gap-[clamp(40px,6vw,88px)]">
+        {stats.map((s, i) => (
+          <RevealItem key={s.label} delay={i * 0.08}>
             <CountUp
               value={s.value}
               className="tabular-nums text-[clamp(56px,7vw,104px)] font-semibold leading-[0.94] tracking-[-0.05em]"

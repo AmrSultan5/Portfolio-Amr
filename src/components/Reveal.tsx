@@ -2,26 +2,30 @@ import { motion, type Variants } from 'framer-motion';
 import type { CSSProperties, ElementType, ReactNode } from 'react';
 import { fadeUp } from '../lib/motion';
 
+/** Trigger point shared by every reveal: fires once the element is ~12% in. */
+const VIEWPORT = { once: true, amount: 0.12, margin: '0px 0px -8% 0px' } as const;
+
 interface RevealProps {
   children: ReactNode;
   as?: ElementType;
   className?: string;
+  style?: CSSProperties;
   variants?: Variants;
-  /** Stagger index — offsets the reveal delay for siblings entering together. */
-  index?: number;
+  delay?: number;
 }
 
-/** Fades + slides an element in once it scrolls into view. Reduced-motion users get an instant appearance via the global CSS override. */
-export function Reveal({ children, as = 'div', className, variants = fadeUp, index = 0 }: RevealProps) {
+/** Fades + slides an element in as it scrolls into view. */
+export function Reveal({ children, as = 'div', className, style, variants = fadeUp, delay = 0 }: RevealProps) {
   const MotionTag = motion[as as 'div'] ?? motion.div;
   return (
     <MotionTag
       className={className}
+      style={style}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={VIEWPORT}
       variants={variants}
-      custom={index}
+      custom={delay}
     >
       {children}
     </MotionTag>
@@ -31,24 +35,20 @@ export function Reveal({ children, as = 'div', className, variants = fadeUp, ind
 interface RevealGroupProps {
   children: ReactNode;
   className?: string;
-  stagger?: number;
   as?: ElementType;
 }
 
-/** Wraps a set of RevealItem children so they stagger in together instead of firing independently. */
-export function RevealGroup({ children, className, stagger = 0.09, as = 'div' }: RevealGroupProps) {
-  const MotionTag = motion[as as 'div'] ?? motion.div;
-  return (
-    <MotionTag
-      className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount: 0.15 }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: stagger } } }}
-    >
-      {children}
-    </MotionTag>
-  );
+/**
+ * Layout wrapper only — it deliberately does NOT orchestrate its children.
+ *
+ * Orchestrating from the parent meant one element crossing the threshold
+ * revealed the entire section at once, so scrolling produced a single burst
+ * and then nothing. Each RevealItem now carries its own viewport trigger, so
+ * transitions keep firing continuously as you scroll through a section.
+ */
+export function RevealGroup({ children, className, as = 'div' }: RevealGroupProps) {
+  const Tag = as as 'div';
+  return <Tag className={className}>{children}</Tag>;
 }
 
 interface RevealItemProps {
@@ -57,13 +57,29 @@ interface RevealItemProps {
   style?: CSSProperties;
   variants?: Variants;
   as?: ElementType;
+  delay?: number;
 }
 
-/** A child of RevealGroup — inherits the group's viewport trigger and stagger timing instead of animating independently. */
-export function RevealItem({ children, className, style, variants = fadeUp, as = 'div' }: RevealItemProps) {
+/** A self-triggering reveal — animates when it personally enters the viewport. */
+export function RevealItem({
+  children,
+  className,
+  style,
+  variants = fadeUp,
+  as = 'div',
+  delay = 0,
+}: RevealItemProps) {
   const MotionTag = motion[as as 'div'] ?? motion.div;
   return (
-    <MotionTag className={className} style={style} variants={variants}>
+    <MotionTag
+      className={className}
+      style={style}
+      initial="hidden"
+      whileInView="show"
+      viewport={VIEWPORT}
+      variants={variants}
+      custom={delay}
+    >
       {children}
     </MotionTag>
   );

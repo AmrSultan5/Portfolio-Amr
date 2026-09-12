@@ -28,10 +28,14 @@ export function Work({ onSelect }: WorkProps) {
 
         <RevealGroup
           className="mt-[clamp(28px,4vw,44px)] grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-[clamp(16px,2vw,24px)]"
-          stagger={0.08}
+         
         >
-          {projects.map((p) => (
-            <RevealItem key={p.title} className={p.featured ? 'col-span-full' : 'h-full'}>
+          {projects.map((p, i) => (
+            <RevealItem
+              key={p.title}
+              className={p.featured ? 'col-span-full' : 'h-full'}
+              delay={p.featured ? 0 : ((i - 2) % 3) * 0.07}
+            >
               <ProjectCard project={p} onSelect={onSelect} />
             </RevealItem>
           ))}
