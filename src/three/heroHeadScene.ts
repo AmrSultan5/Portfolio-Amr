@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export type StreamState = 'listening' | 'thinking' | 'streaming' | 'complete';
 
@@ -10,135 +10,42 @@ export interface HeroHeadHandle {
 
 // Motion envelope — camera framing is derived from these, so the head can never
 // rotate or drift outside the frame.
-const MAX_YAW = 0.36;
+const MAX_YAW = 0.34;
 const MAX_PITCH = 0.18;
 const BOB = 0.035;
 
-// Head silhouette as a lathe profile: [radius, height] from chin up to crown.
-// Authoring the profile directly is the only reliable way to get a domed crown
-// and a defined chin — sculpting a sphere with ad-hoc falloffs yields an egg.
-//
-// Order matters: LatheGeometry winds faces assuming points ascend in y. Listed
-// top-down the winding inverts, normals point inward, and a raycast aimed at
-// the face passes straight through and lands on the inside of the skull — which
-// put the eyes on the BACK of the head.
-const PROFILE: [number, number][] = [
-  [0.001, -0.99],
-  [0.21, -0.94],
-  [0.39, -0.84],
-  [0.55, -0.68],
-  [0.69, -0.47],
-  [0.79, -0.23],
-  [0.84, 0.04],
-  [0.85, 0.3],
-  [0.82, 0.55],
-  [0.75, 0.77],
-  [0.63, 0.94],
-  [0.46, 1.07],
-  [0.24, 1.16],
-  [0.001, 1.2],
-];
-
-/** Narrower than it is deep, like a head. */
-const W = 0.92;
-const D = 1.04;
+// Skull is a rounded box rather than a sphere: it gives a genuinely flat front
+// plane, which is what lets the visor and trim mount flush instead of
+// intersecting a curve and poking out at the corners.
+// Width:height ~0.74, close to a human head — at ~0.9 it read as a cube.
+const SK_W = 1.74;
+const SK_H = 2.34;
+const SK_D = 1.64;
+const SK_R = 0.32;
+/** z of the flat front plane. */
+const FACE = SK_D / 2;
 
 /**
- * Deforms a point on the unit sphere into the head silhouette: a tall dome
- * cranium elongated at the back, tapering through the cheekbones to a narrow
- * chin. Mutates and returns `v`.
- *
- * Every surface piece (skull, visor, jaw plate) is built from this same
- * function, which is what lets the panels conform exactly instead of
- * intersecting the shell and poking through at the edges.
- */
-/**
- * Sculpts the lathed body of revolution into a head: narrower across than
- * deep, flatter at the face, with a brow ridge and cheek hollow. Mutates `v`.
- */
-function deform(v: THREE.Vector3): THREE.Vector3 {
-  v.x *= W;
-  v.z *= D;
-
-  const y = v.y;
-  if (v.z > 0) {
-    // Face: pull the front plane flatter than the revolution gives.
-    v.z *= 0.88;
-    // Brow ridge above the eye line, so the front catches a highlight.
-    const brow = 1 - Math.abs(y - 0.3) / 0.32;
-    if (brow > 0) v.z += 0.05 * brow * brow;
-    // Cheek hollow below it.
-    const cheek = 1 - Math.abs(y + 0.16) / 0.3;
-    if (cheek > 0) v.z -= 0.03 * cheek * cheek;
-    // Chin slopes back rather than jutting.
-    if (y < -0.45) {
-      const t = Math.min(1, (-y - 0.45) / 0.54);
-      v.z -= 0.1 * t * t;
-    }
-  } else {
-    // Cranium: extend the back of the skull.
-    v.z *= 1.16;
-  }
-  return v;
-}
-
-/** Lathes PROFILE into a solid of revolution, then sculpts it into a head. */
-function buildHeadGeometry(segments = 128): THREE.BufferGeometry {
-  const pts = PROFILE.map(([r, y]) => new THREE.Vector2(r, y));
-  let g: THREE.BufferGeometry = new THREE.LatheGeometry(pts, segments);
-
-  const p = g.attributes.position;
-  const v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    deform(v.fromBufferAttribute(p, i));
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-
-  // The lathe duplicates vertices at its start/end seam with distinct UVs, so
-  // computeVertexNormals leaves a hard shading crease down the head. Dropping
-  // the UVs lets mergeVertices weld that seam into smooth, continuous normals.
-  g.deleteAttribute('uv');
-  g = mergeVertices(g);
-  g.computeVertexNormals();
-
-  // Re-project UVs as a planar map seen from +Z. The lathe's own cylindrical
-  // UVs wrap around the sides, so anything painted "on the face" landed on the
-  // ears. With a front projection, texture space is literally the front
-  // elevation: what you draw at the centre of the image lands on the face.
-  const pos = g.attributes.position;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < pos.count; i++) {
-    minX = Math.min(minX, pos.getX(i));
-    maxX = Math.max(maxX, pos.getX(i));
-    minY = Math.min(minY, pos.getY(i));
-    maxY = Math.max(maxY, pos.getY(i));
-  }
-  const uv = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    uv[i * 2] = (pos.getX(i) - minX) / (maxX - minX);
-    uv[i * 2 + 1] = (pos.getY(i) - minY) / (maxY - minY);
-  }
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  return g;
-}
-
-/**
- * A matte-black humanoid robot head. Rendered onto `canvas`; the caller owns
- * lifecycle (call dispose() on unmount).
+ * A humanoid robot head: flat-planed face, flush-mounted smoked visor, two
+ * tracking lozenge eye lenses that blink, brow and vent trim, side transducer
+ * pods and a neck collar.
+ * Rendered onto `canvas`; the caller owns lifecycle (call dispose() on unmount).
  */
 export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const motion = reduced ? 0 : 1;
 
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  // Phones are pixel-dense but GPU-poor; 2x here costs 4x the fragments for no
+  // visible gain at this element size.
   const dprCap = window.innerWidth < 768 ? 1.5 : 2;
   renderer.setPixelRatio(Math.min(dprCap, window.devicePixelRatio || 1));
   renderer.setClearAlpha(0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.06;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   const head = new THREE.Group();
   scene.add(head);
 
@@ -151,14 +58,14 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   const ex = envCv.getContext('2d')!;
   const sky = ex.createLinearGradient(0, 0, 0, EH);
   sky.addColorStop(0, '#FFFFFF');
-  sky.addColorStop(0.45, '#E2E6EC');
-  sky.addColorStop(0.55, '#AEB4BE');
-  sky.addColorStop(1, '#33373D');
+  sky.addColorStop(0.42, '#DEE3EA');
+  sky.addColorStop(0.52, '#A9AFB9');
+  sky.addColorStop(1, '#2F333A');
   ex.fillStyle = sky;
   ex.fillRect(0, 0, EW, EH);
-  const hot = ex.createRadialGradient(EW * 0.3, EH * 0.14, 20, EW * 0.3, EH * 0.14, EW * 0.6);
-  hot.addColorStop(0, 'rgba(255,255,255,0.6)');
-  hot.addColorStop(0.45, 'rgba(255,255,255,0.16)');
+  const hot = ex.createRadialGradient(EW * 0.32, EH * 0.13, 20, EW * 0.32, EH * 0.13, EW * 0.58);
+  hot.addColorStop(0, 'rgba(255,255,255,0.58)');
+  hot.addColorStop(0.45, 'rgba(255,255,255,0.15)');
   hot.addColorStop(1, 'rgba(255,255,255,0)');
   ex.fillStyle = hot;
   ex.fillRect(0, 0, EW, EH);
@@ -175,199 +82,188 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   }
 
   // ------------------------------------------------------------------ materials
-  // Face painted in the front-projected UV space set up by buildHeadGeometry:
-  // image centre maps to the centre of the face, so the visor lands where it is
-  // drawn. v runs bottom (0) to top (1); canvas y is inverted.
-  const FW = 1024;
-  const FH = 1024;
-  const faceCv = document.createElement('canvas');
-  faceCv.width = FW;
-  faceCv.height = FH;
-  const fx = faceCv.getContext('2d')!;
-  const yAt = (v: number) => (1 - v) * FH;
-
-  fx.fillStyle = '#262A31';
-  fx.fillRect(0, 0, FW, FH);
-
-  // Visor: a wide dark band across the eye line with soft vertical falloff.
-  // Centred on v=0.523, the eye slits' measured position in this UV space.
-  const visorTop = yAt(0.63);
-  const visorBot = yAt(0.42);
-  const band = fx.createLinearGradient(0, visorTop, 0, visorBot);
-  band.addColorStop(0, 'rgba(10,12,15,0)');
-  band.addColorStop(0.22, 'rgba(6,8,10,0.96)');
-  band.addColorStop(0.78, 'rgba(6,8,10,0.96)');
-  band.addColorStop(1, 'rgba(10,12,15,0)');
-  fx.save();
-  fx.beginPath();
-  fx.ellipse(FW / 2, (visorTop + visorBot) / 2, FW * 0.34, (visorBot - visorTop) / 2, 0, 0, Math.PI * 2);
-  fx.clip();
-  fx.fillStyle = band;
-  fx.fillRect(0, visorTop, FW, visorBot - visorTop);
-  fx.restore();
-
-  // Brow highlight just above the visor, and a jaw seam below the cheeks.
-  fx.strokeStyle = 'rgba(150,160,175,0.45)';
-  fx.lineWidth = 5;
-  fx.beginPath();
-  fx.ellipse(FW / 2, yAt(0.655), FW * 0.28, FH * 0.05, 0, Math.PI * 1.08, Math.PI * 1.92);
-  fx.stroke();
-
-  fx.strokeStyle = 'rgba(120,130,145,0.28)';
-  fx.lineWidth = 3;
-  fx.beginPath();
-  fx.ellipse(FW / 2, yAt(0.27), FW * 0.15, FH * 0.055, 0, Math.PI * 0.1, Math.PI * 0.9);
-  fx.stroke();
-
-  const faceTex = new THREE.CanvasTexture(faceCv);
-  faceTex.colorSpace = THREE.SRGBColorSpace;
-
-  // Satin black: a soft sheen that describes the form without becoming a mirror.
   const shell = new THREE.MeshPhysicalMaterial({
-    map: faceTex,
+    color: '#23272F',
     metalness: 0.2,
-    roughness: 0.5,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.45,
+    roughness: 0.38,
+    clearcoat: 1,
+    clearcoatRoughness: 0.28,
   });
-  const seamMat = new THREE.MeshStandardMaterial({
-    color: '#2B2F35',
-    metalness: 0.85,
-    roughness: 0.42,
+  const visorMat = new THREE.MeshPhysicalMaterial({
+    color: '#06080B',
+    metalness: 0.45,
+    roughness: 0.14,
+    clearcoat: 1,
+    clearcoatRoughness: 0.07,
   });
-  // One plane per eye with the core and its bloom baked into a single texture.
-  // Layering a separate halo plane over a lens mesh left visible rectangular
-  // edges where the planes met.
-  const GW = 512;
-  const GH = 256;
+  const trim = new THREE.MeshStandardMaterial({
+    color: '#98A0AB',
+    metalness: 1,
+    roughness: 0.3,
+  });
+  // Unlit: an emissive standard material without a bloom pass just reads as flat
+  // pale paint. Basic + an additive halo below sells the light instead.
+  // toneMapped:false keeps the blue vivid — ACES otherwise desaturates bright
+  // unlit colours toward white.
+  const lens = new THREE.MeshBasicMaterial({ color: '#7FD0FF', toneMapped: false });
+
+  // Radial falloff used as an additive halo around each lens.
   const gcv = document.createElement('canvas');
-  gcv.width = GW;
-  gcv.height = GH;
+  gcv.width = 128;
+  gcv.height = 128;
   const gx = gcv.getContext('2d')!;
-  const bloom = gx.createRadialGradient(GW / 2, GH / 2, 4, GW / 2, GH / 2, GH / 2);
-  bloom.addColorStop(0, 'rgba(150,205,255,0.55)');
-  bloom.addColorStop(0.34, 'rgba(70,155,250,0.20)');
-  bloom.addColorStop(1, 'rgba(60,140,240,0)');
-  gx.fillStyle = bloom;
-  gx.fillRect(0, 0, GW, GH);
-  // Bright core slit
-  const r = GH * 0.1;
-  const cw = GW * 0.62;
-  const ch = GH * 0.2;
-  gx.fillStyle = 'rgba(224,244,255,0.98)';
-  gx.beginPath();
-  gx.roundRect((GW - cw) / 2, (GH - ch) / 2, cw, ch, r);
-  gx.fill();
-  gx.filter = 'blur(6px)';
-  gx.drawImage(gcv, 0, 0);
-  gx.filter = 'none';
+  const grd = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(150,205,255,0.95)');
+  grd.addColorStop(0.32, 'rgba(75,160,250,0.34)');
+  grd.addColorStop(1, 'rgba(60,140,240,0)');
+  gx.fillStyle = grd;
+  gx.fillRect(0, 0, 128, 128);
   const glowTex = new THREE.CanvasTexture(gcv);
   const glowMat = new THREE.MeshBasicMaterial({
     map: glowTex,
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    depthTest: true,
     toneMapped: false,
   });
 
-  const disposables: { dispose(): void }[] = [shell, seamMat, faceTex, glowTex, glowMat];
+  const disposables: { dispose(): void }[] = [shell, visorMat, trim, lens, glowTex, glowMat];
   const track = <T extends THREE.BufferGeometry>(g: T): T => {
     disposables.push(g);
     return g;
   };
 
   // ---------------------------------------------------------------------- skull
-  const skullGeo = track(buildHeadGeometry(144));
-  const skull = new THREE.Mesh(skullGeo, shell);
-  head.add(skull);
-  skull.updateMatrixWorld(true);
+  const skullGeo = track(new RoundedBoxGeometry(SK_W, SK_H, SK_D, 24, SK_R));
+  {
+    const p = skullGeo.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      // Jaw: narrow below the cheekbones so the silhouette reads as a head.
+      if (v.y < 0) {
+        const t = Math.min(1, -v.y / (SK_H / 2));
+        v.x *= 1 - 0.3 * t * t;
+        v.z *= 1 - 0.16 * t * t;
+        // Chin: pull the lower face back so it slopes instead of dropping flat.
+        if (v.z > 0) v.z -= 0.17 * t * t * t;
+      }
+      // Crown: ease the very top inward.
+      if (v.y > SK_H * 0.28) {
+        const t = (v.y - SK_H * 0.28) / (SK_H * 0.22);
+        v.x *= 1 - 0.07 * t * t;
+        v.z *= 1 - 0.07 * t * t;
+      }
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    skullGeo.computeVertexNormals();
+  }
+  head.add(new THREE.Mesh(skullGeo, shell));
 
-  // Deliberately no visor or jaw panels: conforming caps read as painted
-  // stripes with hard edges. The head is one continuous matte volume, and the
-  // eye slits are the only break in it.
+  // ---------------------------------------------------------------- visor band
+  // Flush-mounted: half embedded in the face plane, half proud.
+  const visor = new THREE.Mesh(track(new RoundedBoxGeometry(1.02, 0.4, 0.12, 10, 0.1)), visorMat);
+  visor.position.set(0, 0.34, FACE);
+  head.add(visor);
 
-  // ------------------------------------------------------------------ eye slits
-  // Placed by raycasting the deformed shell, so they sit exactly on the surface
-  // whatever the silhouette maths does.
+  // Brow trim above the visor
+  const brow = new THREE.Mesh(track(new RoundedBoxGeometry(1.0, 0.042, 0.05, 4, 0.019)), trim);
+  brow.position.set(0, 0.64, FACE + 0.01);
+  head.add(brow);
+
+  // ----------------------------------------------------------------------- eyes
+  // Lozenges, not circles — circular eyes read as cartoon googly eyes.
   const eyes = new THREE.Group();
+  eyes.position.set(0, 0.34, FACE + 0.07);
   head.add(eyes);
 
-  const ray = new THREE.Raycaster();
-  const eyeGeo = track(new THREE.PlaneGeometry(0.62, 0.31));
-  const eyeUnits: THREE.Mesh[] = [];
-
+  // The eyes group sits at FACE + 0.07; the visor's front face is at -0.01 in
+  // group space. The halo goes just in front of the visor, the lens in front of
+  // the halo, so the glow spills onto the visor rather than being swallowed by
+  // the lens geometry.
+  const eyeGeo = track(new RoundedBoxGeometry(0.33, 0.13, 0.05, 6, 0.063));
+  const glowGeo = track(new THREE.PlaneGeometry(0.92, 0.54));
+  const eyeUnits: { lens: THREE.Mesh; halo: THREE.Mesh }[] = [];
   for (const sx of [-1, 1]) {
-    const dir = new THREE.Vector3(sx * 0.34, 0.22, 1).normalize();
-    // Fire inward from outside the head: a ray cast from the centre hits only
-    // back faces, which FrontSide materials don't report.
-    ray.set(dir.clone().multiplyScalar(6), dir.clone().negate());
-    const hit = ray.intersectObject(skull, false)[0];
-    const point = hit ? hit.point.clone() : dir.clone().multiplyScalar(0.95);
-    const normal = hit?.face ? hit.face.normal.clone().normalize() : dir.clone();
+    const halo = new THREE.Mesh(glowGeo, glowMat);
+    halo.position.set(sx * 0.235, 0, 0.005);
+    halo.renderOrder = 1;
+    eyes.add(halo);
 
-    // The offset has to clear the surface curvature across the plane's own
-    // width, or the ends sink into the shell and it renders as a half-moon.
-    const eye = new THREE.Mesh(eyeGeo, glowMat);
-    eye.position.copy(point).addScaledVector(normal, 0.05);
-    eye.lookAt(point.clone().addScaledVector(normal, 1.05));
+    const eye = new THREE.Mesh(eyeGeo, lens);
+    eye.position.set(sx * 0.235, 0, 0.035);
     eye.renderOrder = 2;
     eyes.add(eye);
-    eyeUnits.push(eye);
+
+    eyeUnits.push({ lens: eye, halo });
   }
 
-  // ------------------------------------------------------------------ neck
-  const neck = new THREE.Mesh(track(new THREE.CylinderGeometry(0.34, 0.46, 0.5, 64)), shell);
-  neck.position.set(0, -1.18, -0.1);
+  // --------------------------------------------------------------- vent grille
+  for (let i = 0; i < 3; i++) {
+    const bar = new THREE.Mesh(
+      track(new RoundedBoxGeometry(0.36 - i * 0.08, 0.03, 0.04, 3, 0.013)),
+      trim,
+    );
+    bar.position.set(0, -0.46 - i * 0.095, FACE - 0.04 - i * 0.035);
+    head.add(bar);
+  }
+
+  // ---------------------------------------------------------------- side pods
+  const podGeo = track(new THREE.CylinderGeometry(0.21, 0.21, 0.14, 48));
+  const podRingGeo = track(new THREE.TorusGeometry(0.21, 0.024, 16, 48));
+  for (const sx of [-1, 1]) {
+    const pod = new THREE.Mesh(podGeo, shell);
+    pod.rotation.z = Math.PI / 2;
+    pod.position.set(sx * (SK_W / 2 - 0.02), 0.24, -0.08);
+    head.add(pod);
+
+    const ring = new THREE.Mesh(podRingGeo, trim);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(sx * (SK_W / 2 + 0.05), 0.24, -0.08);
+    head.add(ring);
+  }
+
+  // -------------------------------------------------------------- neck + collar
+  const neck = new THREE.Mesh(track(new THREE.CylinderGeometry(0.46, 0.58, 0.36, 48)), shell);
+  neck.position.set(0, -1.3, -0.06);
   head.add(neck);
 
-  const collar = new THREE.Mesh(track(new THREE.TorusGeometry(0.36, 0.03, 16, 64)), seamMat);
+  const collar = new THREE.Mesh(track(new THREE.TorusGeometry(0.47, 0.042, 16, 64)), trim);
   collar.rotation.x = Math.PI / 2;
-  collar.position.set(0, -1.0, -0.1);
+  collar.position.set(0, -1.19, -0.06);
   head.add(collar);
 
   // -------------------------------------------------------------------- lights
-  scene.add(new THREE.HemisphereLight('#FFFFFF', '#B9BFC9', 0.5));
-
-  // Key, high and slightly to camera-left.
-  const key = new THREE.DirectionalLight('#FFFFFF', 2.0);
-  key.position.set(-2.4, 4.4, 5.0);
+  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C2C7D0', 0.6));
+  const key = new THREE.DirectionalLight('#FFFFFF', 1.8);
+  key.position.set(-2.2, 5.4, 4.6);
   scene.add(key);
-
-  // Frontal fill. Without this the face sits in its own shadow: every other
-  // light here is side or back, so the visor and the brow had nothing to
-  // catch and the head read as a featureless silhouette.
-  const front = new THREE.DirectionalLight('#F2F6FF', 1.25);
-  front.position.set(0.6, 0.9, 6);
-  scene.add(front);
-
-  // Rims separate the matte black head from the light page.
-  const rimL = new THREE.DirectionalLight('#FFFFFF', 1.5);
-  rimL.position.set(-4.4, -0.6, -3.2);
-  scene.add(rimL);
-  const rimR = new THREE.DirectionalLight('#E8F1FF', 1.25);
-  rimR.position.set(4.4, 0.4, -3.6);
-  scene.add(rimR);
+  const fill = new THREE.DirectionalLight('#CFE2FF', 0.7);
+  fill.position.set(5.2, 1.4, -2.4);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight('#FFFFFF', 0.9);
+  rim.position.set(-1.2, -2.4, -5.2);
+  scene.add(rim);
 
   // -------------------------------------------------------------------- framing
-  const maxR = Math.max(...PROFILE.map(([r]) => r));
-  const SUBJ_W = maxR * W * 2 + 0.1;
-  const SUBJ_H = PROFILE[0][1] - PROFILE[PROFILE.length - 1][1] + 0.62;
+  const SUBJ_W = SK_W + 0.6; // skull + side pods
+  const SUBJ_H = SK_H + 0.5; // skull + neck
   const resize = () => {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    // Frame the widest *rotated* extent plus a margin, so turning never clips.
     const MARGIN = 1.16;
     const swept = (a: number, b: number, angle: number) =>
       a * Math.cos(angle) + b * Math.sin(angle);
-    const subjectW = swept(SUBJ_W, D * 2, MAX_YAW) * MARGIN;
-    const subjectH = (swept(SUBJ_H, D * 2, MAX_PITCH) + BOB * 2) * MARGIN;
+    const subjectW = swept(SUBJ_W, SK_D, MAX_YAW) * MARGIN;
+    const subjectH = (swept(SUBJ_H, SK_D, MAX_PITCH) + BOB * 2) * MARGIN;
     const vFov = (camera.fov * Math.PI) / 180;
     const distH = subjectH / 2 / Math.tan(vFov / 2);
     const distW = subjectW / 2 / Math.tan(vFov / 2) / camera.aspect;
-    camera.position.set(0, 0.04, Math.max(distH, distW));
-    camera.lookAt(0, -0.08, 0);
+    camera.position.set(0, 0.02, Math.max(distH, distW));
+    camera.lookAt(0, -0.06, 0);
     camera.updateProjectionMatrix();
   };
   resize();
@@ -385,10 +281,15 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   };
   window.addEventListener('pointermove', onMove, { passive: true });
 
+  // Stop rendering entirely once the hero scrolls away — otherwise a WebGL loop
+  // keeps burning frames behind every section of the page.
   let onScreen = true;
-  const io = new IntersectionObserver(([entry]) => {
-    onScreen = entry.isIntersecting;
-  }, { rootMargin: '120px' });
+  const io = new IntersectionObserver(
+    ([entry]) => {
+      onScreen = entry.isIntersecting;
+    },
+    { rootMargin: '120px' },
+  );
   io.observe(canvas);
 
   // ---------------------------------------------------------------------- loop
@@ -396,7 +297,9 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
   const clock = new THREE.Clock();
   let yaw = 0;
   let pitch = 0;
-  let blink = 0;
+  let eyeX = 0;
+  let eyeY = 0;
+  let blink = 0; // 0 = open, 1 = shut
   let nextBlink = 2.5;
   let raf = 0;
   let stopped = false;
@@ -419,6 +322,11 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     head.rotation.z = -yaw * 0.06;
     head.position.y = motion ? Math.sin(t * 0.6) * BOB : 0;
 
+    // Eyes lead the head — they reach the target before the neck does.
+    eyeX += (clamp(gx * 0.05, 0.045) - eyeX) * 0.1;
+    eyeY += (clamp(-gy * 0.026, 0.024) - eyeY) * 0.1;
+
+    // Blink: snap shut, ease open.
     if (motion && t > nextBlink) {
       blink = 1;
       nextBlink = t + 3 + Math.random() * 4.5;
@@ -428,10 +336,20 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
     const speaking = streamState === 'streaming' && motion;
     const thinking = streamState === 'thinking' && motion;
 
-    const lid = Math.max(0.05, 1 - blink * 0.96);
-    for (const eye of eyeUnits) eye.scale.y = lid;
+    const lid = Math.max(0.06, 1 - blink * 0.95);
+    for (let i = 0; i < eyeUnits.length; i++) {
+      const { lens: eye, halo } = eyeUnits[i];
+      const sx = i === 0 ? -1 : 1;
+      eye.position.x = sx * 0.235 + eyeX;
+      eye.position.y = eyeY;
+      eye.scale.y = lid;
+      halo.position.x = sx * 0.235 + eyeX;
+      halo.position.y = eyeY;
+      halo.scale.y = Math.max(0.12, lid);
+    }
 
     if (motion) {
+      // Brightness rides the stream state; the halo carries most of the read.
       const base = speaking ? 1 : thinking ? 0.58 : 0.8;
       const flicker = speaking
         ? Math.abs(Math.sin(t * 7.5)) * 0.22
@@ -439,7 +357,8 @@ export function mountHeroHead(canvas: HTMLCanvasElement): HeroHeadHandle {
           ? Math.sin(t * 2.4) * 0.16
           : Math.sin(t * 1.2) * 0.06;
       const level = Math.min(1.15, base + flicker);
-      glowMat.opacity = (0.5 + 0.5 * level) * Math.max(0.22, lid);
+      lens.color.setRGB(0.26 + 0.3 * level, 0.66 + 0.24 * level, 1);
+      glowMat.opacity = (0.42 + 0.5 * level) * Math.max(0.25, lid);
     }
 
     renderer.render(scene, camera);
