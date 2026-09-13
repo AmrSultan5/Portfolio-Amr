@@ -60,15 +60,6 @@ function ProjectCard({ project, onSelect }: { project: Project; onSelect: (p: Pr
           : 'border-dark-border bg-dark-2 p-[clamp(28px,3vw,44px)] hover:border-[#4C4C55] hover:bg-[#15151A]'
       }`}
     >
-      {/* Light sweeps in from the top-left on hover */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{
-          background:
-            'radial-gradient(120% 90% at 0% 0%, rgba(127,185,238,0.10) 0%, rgba(127,185,238,0) 62%)',
-        }}
-      />
       <div className="relative flex flex-wrap items-baseline gap-3.5">
         <span
           className={`text-xs uppercase tracking-[0.14em] ${featured ? 'text-dark-accent' : 'text-dark-muted'}`}

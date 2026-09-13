@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { qa } from '../data/qa';
+import { useTypingStream } from '../hooks/useTypingStream';
 import { EASE } from '../lib/motion';
-import { SystemGraph } from './SystemGraph';
+import { ChatCard } from './ChatCard';
+import { HeroHead } from './HeroHead';
 
 const container = {
   hidden: {},
@@ -19,6 +22,8 @@ const soft = {
 };
 
 export function Hero() {
+  const { qText, aText, streamState } = useTypingStream(qa, 30);
+
   return (
     <section id="top" className="relative overflow-hidden px-[clamp(20px,5vw,28px)]">
       {/* Ambient backdrop. No blur filter — a radial gradient is already a soft
@@ -53,7 +58,7 @@ export function Hero() {
             </span>
           </motion.div>
 
-          <h1 className="m-0 max-w-[16ch] text-[clamp(35px,4.6vw,72px)] font-semibold leading-[0.96] tracking-[-0.048em]">
+          <h1 className="m-0 max-w-[14ch] text-[clamp(37px,5.3vw,84px)] font-semibold leading-[0.95] tracking-[-0.05em]">
             <span className="block overflow-hidden pb-[0.07em]">
               <motion.span variants={lineMask} className="block text-ink">
                 Most freelancers have side projects.
@@ -97,12 +102,24 @@ export function Hero() {
 
         </div>
 
+        {/* Head + card as one composition */}
         <motion.div
           variants={soft}
-          className="relative mx-auto w-full pb-[clamp(32px,6vh,72px)] lg:mx-0 lg:pb-0"
-          style={{ flex: '0 1 560px', minWidth: 'min(100%, 300px)' }}
+          className="relative mx-auto flex flex-col items-center pb-[clamp(72px,12vh,120px)] lg:mx-0 lg:pb-0"
+          style={{ flex: '0 1 400px', minWidth: 'min(100%, 300px)' }}
         >
-          <SystemGraph />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-[38%] aspect-square w-[92%] -translate-x-1/2 -translate-y-1/2"
+            style={{
+              background:
+                'radial-gradient(ellipse, rgba(61,155,240,0.16) 0%, rgba(61,155,240,0.04) 46%, rgba(61,155,240,0) 72%)',
+            }}
+          />
+          <HeroHead streamState={streamState} />
+          <div className="relative -mt-6 w-full px-2">
+            <ChatCard qText={qText} aText={aText} streamState={streamState} />
+          </div>
         </motion.div>
       </motion.div>
 
