@@ -49,22 +49,22 @@ export function Hero() {
         {/* On phones this column alone fills the first screen, so the robot sits
             below the fold and is discovered on scroll. */}
         <div
-          className="flex min-h-[calc(100svh-54px)] flex-col justify-center gap-[clamp(18px,2.6vh,26px)] py-[clamp(24px,5vh,56px)] lg:min-h-[calc(100svh-54px)] lg:flex-1 lg:py-0"
+          className="flex min-h-[calc(100svh-54px)] flex-col justify-center gap-[clamp(14px,2.2vh,22px)] py-[clamp(24px,5vh,56px)] lg:min-h-[calc(100svh-54px)] lg:flex-1 lg:py-0"
         >
           <motion.div variants={soft} className="flex">
-            <span className="inline-flex items-center gap-2.5 rounded-full border border-border-2 bg-white/70 px-4 py-2 text-[12.5px] text-muted-2 backdrop-blur-sm">
+            <span className="inline-flex items-center gap-2.5 rounded-full border border-border-2 bg-white/70 px-[15px] py-[7px] text-xs text-muted-2 backdrop-blur-sm">
               <span className="h-1.5 w-1.5 animate-[livedot_3s_ease-in-out_infinite] rounded-full bg-accent" />
               <span>Open for freelance · Web · AI agents · Android</span>
             </span>
           </motion.div>
 
-          <h1 className="m-0 max-w-[14ch] text-[clamp(37px,5.3vw,84px)] font-semibold leading-[0.95] tracking-[-0.05em]">
-            <span className="block overflow-hidden pb-[0.07em]">
+          <h1 className="m-0 max-w-[15ch] text-[clamp(31px,5.4vw,80px)] font-semibold leading-[0.98] tracking-[-0.047em]">
+            <span className="block overflow-hidden pb-[0.06em]">
               <motion.span variants={lineMask} className="block text-ink">
                 Most freelancers have side projects.
               </motion.span>
             </span>
-            <span className="mt-[0.04em] block overflow-hidden pb-[0.07em]">
+            <span className="mt-[0.06em] block overflow-hidden pb-[0.06em]">
               <motion.span variants={lineMask} className="block text-accent">
                 I have systems in production.
               </motion.span>
@@ -73,7 +73,7 @@ export function Hero() {
 
           <motion.p
             variants={soft}
-            className="m-0 max-w-[46ch] text-[clamp(16px,1.35vw,19px)] leading-[1.6] text-muted"
+            className="m-0 max-w-[48ch] text-[clamp(15px,1.2vw,17.5px)] leading-[1.62] text-muted"
           >
             Freelance software and AI engineering — web applications, AI agents and LLM systems, and Android
             apps. Shipped and running inside a multinational enterprise.
@@ -85,7 +85,7 @@ export function Hero() {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.985 }}
               transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="rounded-full bg-ink px-8 py-[17px] text-center text-[15.5px] font-medium text-bg shadow-[0_2px_10px_rgba(16,16,17,0.12)] transition-colors duration-300 hover:bg-accent hover:shadow-[0_18px_38px_-10px_rgba(44,111,181,0.55)]"
+              className="rounded-full bg-ink px-[30px] py-[15px] text-center text-[15px] font-medium text-bg shadow-[0_2px_10px_rgba(16,16,17,0.12)] transition-colors duration-300 hover:bg-accent hover:shadow-[0_18px_36px_-8px_rgba(44,111,181,0.5)]"
             >
               Start a project
             </motion.a>
@@ -94,7 +94,7 @@ export function Hero() {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.985 }}
               transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="rounded-full border border-border-3 bg-white/60 px-8 py-[17px] text-center text-[15.5px] font-medium text-ink transition-colors duration-300 hover:border-ink"
+              className="rounded-full border border-border-3 bg-white/60 px-[30px] py-[15px] text-center text-[15px] font-medium text-ink transition-colors duration-300 hover:border-ink"
             >
               See selected work
             </motion.a>
@@ -106,7 +106,7 @@ export function Hero() {
         <motion.div
           variants={soft}
           className="relative mx-auto flex flex-col items-center pb-[clamp(72px,12vh,120px)] lg:mx-0 lg:pb-0"
-          style={{ flex: '0 1 400px', minWidth: 'min(100%, 300px)' }}
+          style={{ flex: '0 1 380px', minWidth: 'min(100%, 300px)' }}
         >
           <div
             aria-hidden
