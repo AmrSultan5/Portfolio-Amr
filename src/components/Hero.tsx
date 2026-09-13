@@ -71,15 +71,7 @@ export function Hero() {
             </span>
           </h1>
 
-          <motion.p
-            variants={soft}
-            className="m-0 max-w-[48ch] text-[clamp(15px,1.2vw,17.5px)] leading-[1.62] text-muted"
-          >
-            Freelance software and AI engineering — web applications, AI agents and LLM systems, and Android
-            apps. Shipped and running inside a multinational enterprise.
-          </motion.p>
-
-          <motion.div variants={soft} className="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
+          <motion.div variants={soft} className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
             <motion.a
               href="#contact"
               whileHover={{ y: -2 }}
